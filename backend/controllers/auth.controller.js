@@ -96,26 +96,37 @@ export const logout = (req,res) =>{
         return res.status(500).json({message: "Internal Server Error"})
     }
 }
-export const updateprofile = async (req,res)=>{
+export const updateprofile = async (req, res) => {
+    try {
+        const { profilePic } = req.body;
+        const userId = req.user._id;
 
-    try{
-        const {profilePic} = req.body;
-       const userId =  req.user._id;
+        if (!profilePic) {
+            return res.status(400).json({ message: "Profile pic is required" });
+        }
 
-       if(!profilePic){
-        return res.status(400).json({message: "profile pic is required"})
-       }
+        // Calculate size from base64 string
+        const base64Data = profilePic.split(',')[1] || profilePic;
+        const imageSizeMB = Buffer.byteLength(base64Data, 'base64') / (1024 * 1024);
+        const maxSizeMB = 10; // Free plan limit
 
-      const uploadResponse =  await cloudinary.uploader.upload(profilePic)
-      const updatedUser = await User.findByIdAndUpdate(userId, {profilePic: uploadResponse.secure_url}, {new:true})
+        if (imageSizeMB > maxSizeMB) {
+            return res.status(400).json({ message: `Profile picture exceeds ${maxSizeMB}MB limit. Please upload a smaller image.` });
+        }
 
-      res.status(200).json(updatedUser)
+        const uploadResponse = await cloudinary.uploader.upload(profilePic);
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { profilePic: uploadResponse.secure_url },
+            { new: true }
+        );
 
-    } catch(error){
-      console.log("error in update profile: ",error);
-      res.status(500).json({message: "Internal server error" })
+        res.status(200).json(updatedUser);
+    } catch (error) {
+        console.log("error in update profile: ", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-}
+};
 
 export const checkAuth = async (req,res) =>{
     try {
